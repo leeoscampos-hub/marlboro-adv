@@ -10,7 +10,9 @@
 **/*.log
 **/*.db
 **/*.db-*
+**/*.db.enc
 **/*.sqlite
+**/*.sqlite.enc
 **/*.sqlite3
 
 saas_juridico/backups/

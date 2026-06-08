@@ -124,24 +124,24 @@ Guia completo:
 docs/DEPLOY_EC2_AWS.md
 ```
 
-MigraÃ§Ã£o para PostgreSQL
+Migração para PostgreSQL
 -----------------------
 
-O projeto tem scripts para automatizar a migraÃ§Ã£o SQLite â†’ PostgreSQL e subir o serviÃ§o:
+O projeto tem scripts para automatizar a migração SQLite -> PostgreSQL e subir o serviço:
 
-- `scripts/migrate_and_up.ps1` â€” PowerShell (Windows)
-- `scripts/migrate_and_up.sh` â€” Bash (Linux/macOS)
-- `scripts/backup_postgres.ps1` / `scripts/restore_postgres.ps1` â€” backup/restore
+- `scripts/migrate_and_up.ps1` - PowerShell (Windows)
+- `scripts/migrate_and_up.sh` - Bash (Linux/macOS)
+- `scripts/backup_postgres.ps1` / `scripts/restore_postgres.ps1` - backup/restore
 
-Leia tambÃ©m: `README_POSTGRES_MIGRATION.md` para instruÃ§Ãµes detalhadas.
+Leia também: `README_POSTGRES_MIGRATION.md` para instruções detalhadas.
 
-IntegraÃ§Ã£o ContÃ­nua
+Integração Contínua
 -------------------
 
 Adicionamos um workflow de CI (`.github/workflows/ci.yml`) que:
 
-- ConstrÃ³i as imagens com `docker compose build`
-- Sobe os serviÃ§os com `docker compose up -d`
-- Executa o `smoke_test.ps1` para validar endpoints bÃ¡sicos
+- Constrói as imagens com `docker compose build`
+- Sobe os serviços com `docker compose up -d`
+- Executa o `smoke_test.ps1` para validar endpoints básicos
 - Faz teardown no final
 

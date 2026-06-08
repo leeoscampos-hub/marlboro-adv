@@ -4,22 +4,22 @@ import sys
 import tempfile
 from pathlib import Path
 
-try:
-    from db_crypto import encrypt_file, decrypt_file
-    from field_crypto import encrypt_str, decrypt_str
-except Exception:
-    # when executed as module
-    from saas_juridico.db_crypto import encrypt_file, decrypt_file
-    from saas_juridico.field_crypto import encrypt_str, decrypt_str
+repo = Path(__file__).resolve().parent.parent
+if str(repo) not in sys.path:
+    sys.path.insert(0, str(repo))
+
+from db_crypto import encrypt_file, decrypt_file
+from field_crypto import encrypt_str, decrypt_str
 
 
 def main():
-    repo = Path(__file__).resolve().parent.parent
     src = repo / "lexflow.db"
     enc = repo / "lexflow.db.enc"
     if not src.exists():
-        print("lexflow.db not found; cannot validate file encryption.")
-        sys.exit(2)
+        src = Path(tempfile.mkdtemp(prefix="lexflow_crypto_src_")) / "lexflow.db"
+        src.write_bytes(b"lexflow encryption smoke test")
+        enc = src.with_suffix(".db.enc")
+        print("lexflow.db not found; validating with temporary sample file.")
 
     passphrase = os.environ.get("ENCRYPTION_PASSPHRASE") or "test-passphrase"
 

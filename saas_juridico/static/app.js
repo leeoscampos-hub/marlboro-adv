@@ -3943,7 +3943,7 @@ function agendaDayPanelTitleV4Stub(dateKey) {
       } else if (kind === "event") {
         await api(`/api/events/${id}/status`, { method: "PATCH", body: JSON.stringify({ status: "concluido" }) });
       } else if (kind === "deadline") {
-        await api(`/api/deadlines/${id}/status`, { method: "PATCH", body: JSON.stringify({ status: "concluÃ­do" }) });
+        await api(`/api/deadlines/${id}/status`, { method: "PATCH", body: JSON.stringify({ status: "concluído" }) });
       }
       state.agendaActivityFilter = "a-concluir";
       await agendaAstreaV3();
@@ -4438,7 +4438,7 @@ async function attendancesAstreaView() {
         <label for="attendance_task_priority">Prioridade</label>
         <select id="attendance_task_priority" name="priority">
           <option value="baixa">Baixa</option>
-          <option value="m?dia">M?dia</option>
+          <option value="média">Média</option>
           <option value="alta">Alta</option>
         </select>
       </div>
@@ -4745,7 +4745,7 @@ async function attendancesAstreaView() {
         const taskPayload = {
           title: payload.title,
           due_date: payload.due_date,
-          priority: payload.priority || "m?dia",
+          priority: payload.priority || "média",
           owner: payload.owner,
           label_id: payload.label_id ? Number(payload.label_id) : null,
           task_list: "Atendimentos",

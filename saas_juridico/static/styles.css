@@ -4414,7 +4414,7 @@ a {
 
 .badge.alta,
 .badge.crítica,
-.badge.crÃ­tica,
+.badge.crítica,
 .badge.alto {
   color: var(--red);
   background: var(--red-soft);
@@ -4422,9 +4422,9 @@ a {
 }
 
 .badge.média,
-.badge.mÃ©dia,
+.badge.média,
 .badge.médio,
-.badge.mÃ©dio,
+.badge.médio,
 .badge.parcial {
   color: var(--amber);
   background: var(--amber-soft);
@@ -4435,7 +4435,7 @@ a {
 .badge.baixo,
 .badge.pago,
 .badge.concluída,
-.badge.concluÃ­da,
+.badge.concluída,
 .badge.ativo {
   color: var(--green);
   background: var(--green-soft);
