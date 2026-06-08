@@ -14,10 +14,33 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  preflight:
+    name: Check production secrets
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_ready: ${{ steps.check.outputs.deploy_ready }}
+    steps:
+      - name: Check EC2 configuration
+        id: check
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_SSH_KEY: ${{ secrets.EC2_SSH_KEY }}
+        run: |
+          if [ -n "$EC2_HOST" ] && [ -n "$EC2_USER" ] && [ -n "$EC2_SSH_KEY" ]; then
+            echo "deploy_ready=true" >> "$GITHUB_OUTPUT"
+            echo "Production EC2 secrets are configured."
+          else
+            echo "deploy_ready=false" >> "$GITHUB_OUTPUT"
+            echo "Production deploy skipped: configure EC2_HOST, EC2_USER and EC2_SSH_KEY secrets to enable it."
+          fi
+
   deploy:
     name: Deploy to EC2
     runs-on: ubuntu-latest
     environment: production
+    needs: preflight
+    if: needs.preflight.outputs.deploy_ready == 'true'
 
     steps:
       - name: Checkout

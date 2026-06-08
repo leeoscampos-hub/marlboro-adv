@@ -1,19 +1,27 @@
 # Fluxo Git e CI/CD
 
-Repositório alvo: `leeoscampos-hub/marlboro-adv`
+Repositorio alvo: `leeoscampos-hub/marlboro-adv`
+
+## Estado atual
+
+- `main` publicada e protegida no GitHub.
+- `dev` publicada para novas implementacoes.
+- Pull request obrigatorio para levar alteracoes para `main`.
+- Checks obrigatorios na `main`: `Build, API and smoke tests` e `validate`.
+- Deploy EC2 configurado, mas condicionado aos secrets de producao.
 
 ## Branches
 
-- `main`: produção. Só recebe código aprovado via pull request.
-- `dev`: desenvolvimento. Todas as novas implementações entram primeiro aqui.
+- `main`: producao. Deve receber somente codigo aprovado.
+- `dev`: desenvolvimento. Novas implementacoes entram primeiro aqui.
 
 ## Fluxo de trabalho
 
-1. Criar ou atualizar a branch `dev`.
-2. Fazer novas implementações em branches curtas a partir da `dev`, por exemplo `feature/agenda-ajustes`.
-3. Abrir pull request da branch de feature para `dev`, quando desejar revisão interna.
-4. Abrir pull request de `dev` para `main` para aprovação de produção.
-5. O merge na `main` dispara o deploy para EC2 pelo workflow `CD - Production EC2`.
+1. Trabalhar na branch `dev` ou em branches curtas a partir dela.
+2. Abrir pull request para revisao.
+3. Aprovar e fazer merge para `main`.
+4. A pipeline de CI valida backend, Docker, criptografia e endpoints.
+5. Quando os secrets de producao estiverem configurados, o merge na `main` dispara o deploy EC2.
 
 ## CI
 
@@ -25,67 +33,76 @@ O workflow `CI - LexFlow` roda em:
 
 Ele valida:
 
-- dependências Python;
-- compilação do backend;
+- dependencias Python;
+- compilacao do backend;
 - helpers de criptografia;
-- configuração Docker Compose;
+- configuracao Docker Compose;
 - build e subida da stack;
 - `/api/health`;
 - login admin;
 - endpoints principais.
 
-## CD em produção
+## Protecao da main
+
+A branch `main` foi configurada com:
+
+- pull request antes do merge;
+- 1 aprovacao obrigatoria;
+- checks obrigatorios antes do merge;
+- branch atualizada antes do merge;
+- historico linear;
+- resolucao obrigatoria de conversas;
+- bloqueio de force push;
+- bloqueio de delete.
+
+## CD em producao
 
 O workflow `CD - Production EC2` roda em:
 
 - push/merge na `main`;
-- execução manual pelo GitHub Actions.
+- execucao manual pelo GitHub Actions.
 
-Secrets necessários no GitHub:
+O deploy real so executa se os secrets obrigatorios existirem:
 
 - `EC2_HOST`: IP ou DNS da EC2.
-- `EC2_USER`: usuário SSH, por exemplo `ubuntu`.
+- `EC2_USER`: usuario SSH, por exemplo `ubuntu`.
 - `EC2_SSH_KEY`: chave privada SSH autorizada na EC2.
 
 Variables recomendadas no GitHub:
 
-- `EC2_APP_DIR`: caminho do projeto na EC2. Padrão usado pelo workflow: `/opt/lexflow/saas_juridico`.
-- `PRODUCTION_URL`: URL pública, por exemplo `https://app.seudominio.com`.
+- `EC2_APP_DIR`: caminho do projeto na EC2. Padrao: `/opt/lexflow/saas_juridico`.
+- `PRODUCTION_URL`: URL publica, por exemplo `https://app.seudominio.com`.
 
-Na EC2, o diretório precisa conter o repositório clonado e o arquivo `.env.ec2` real preenchido.
+Enquanto esses secrets nao estiverem configurados, o workflow registra que o deploy foi pulado e encerra sem falhar a pipeline.
 
-## Criar branches no GitHub
+## Preparacao da EC2
 
-Opção 1: pelo GitHub Actions.
+Na EC2, o diretorio de aplicacao deve conter:
 
-1. Publique estes arquivos na branch padrão do repositório.
-2. Abra `Actions`.
-3. Rode manualmente o workflow `Bootstrap Branches`.
-4. Ele cria a branch `dev` a partir da `main`, se ela ainda não existir.
+- repositorio clonado;
+- Docker e Docker Compose instalados;
+- arquivo `.env.ec2` real preenchido;
+- acesso SSH pela chave cadastrada em `EC2_SSH_KEY`;
+- porta HTTP/HTTPS liberada no security group;
+- dominio apontando para o IP da instancia, quando houver dominio.
 
-Opção 2: com Git instalado e autenticado:
+Comandos base na EC2:
 
 ```bash
-git clone https://github.com/leeoscampos-hub/marlboro-adv.git
-cd marlboro-adv
-git checkout -B main
-git push -u origin main
-git checkout -B dev
-git push -u origin dev
+sudo mkdir -p /opt/lexflow
+sudo chown -R "$USER":"$USER" /opt/lexflow
+cd /opt/lexflow
+git clone https://github.com/leeoscampos-hub/marlboro-adv.git .
+cd saas_juridico
+cp .env.ec2.example .env.ec2
+docker compose --env-file .env.ec2 -f docker-compose.ec2.yml up --build -d
 ```
 
-Depois, no GitHub, configure `main` como branch protegida exigindo pull request e status checks antes do merge.
+## Proximos passos para producao
 
-## Proteção recomendada da `main`
-
-No GitHub:
-
-1. Settings.
-2. Branches.
-3. Add branch protection rule.
-4. Branch name pattern: `main`.
-5. Ativar:
-   - Require a pull request before merging.
-   - Require status checks to pass before merging.
-   - Require branches to be up to date before merging.
-   - Restrict who can push to matching branches, se desejar.
+1. Criar a EC2.
+2. Configurar DNS/dominio.
+3. Preencher `.env.ec2`.
+4. Cadastrar secrets e variables no GitHub.
+5. Rodar o workflow `CD - Production EC2`.
+6. Validar login, agenda, publicacoes, CRM, financeiro, backups e monitoramento.
