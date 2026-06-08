@@ -1,0 +1,19 @@
+services:
+  app:
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8765
+      LEXFLOW_USE_OPENAI: "true"
+    deploy:
+      resources:
+        limits:
+          cpus: "1.00"
+          memory: 768M
+        reservations:
+          memory: 256M
+
+  db:
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-lexflow}
+      POSTGRES_USER: ${POSTGRES_USER:-lexflow}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD obrigatória em produção}

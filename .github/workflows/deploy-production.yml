@@ -1,0 +1,51 @@
+name: CD - Production EC2
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to EC2
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.EC2_SSH_KEY }}" > ~/.ssh/lexflow_ec2
+          chmod 600 ~/.ssh/lexflow_ec2
+          ssh-keyscan -H "${{ secrets.EC2_HOST }}" >> ~/.ssh/known_hosts
+
+      - name: Deploy on EC2
+        env:
+          EC2_USER: ${{ secrets.EC2_USER }}
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_APP_DIR: ${{ vars.EC2_APP_DIR }}
+          PRODUCTION_URL: ${{ vars.PRODUCTION_URL }}
+        run: |
+          APP_DIR="${EC2_APP_DIR:-/opt/lexflow/saas_juridico}"
+          HEALTH_URL="${PRODUCTION_URL:-http://127.0.0.1:8765}/api/health"
+          ssh -i ~/.ssh/lexflow_ec2 "${EC2_USER}@${EC2_HOST}" "
+            set -euo pipefail
+            cd '${APP_DIR}'
+            git fetch origin main
+            git checkout main
+            git pull --ff-only origin main
+            chmod +x scripts/ec2_deploy.sh scripts/ec2_backup.sh scripts/monitor_health.sh
+            ./scripts/ec2_deploy.sh
+            HEALTH_URL='${HEALTH_URL}' ./scripts/monitor_health.sh
+          "

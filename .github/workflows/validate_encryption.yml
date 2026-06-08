@@ -1,0 +1,50 @@
+name: Validate Encryption and Basic App Start
+
+on:
+  push:
+    branches: [ dev, main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 10s --health-timeout 5s --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r saas_juridico/requirements.txt
+
+      - name: Validate encryption utilities
+        env:
+          ENCRYPTION_PASSPHRASE: test-passphrase
+        run: |
+          cd saas_juridico
+          python ./scripts/validate_encryption_and_field_crypto.py
+
+      - name: Run basic server smoke (no Docker compose)
+        run: |
+          cd saas_juridico
+          # run server in background for a short smoke test
+          python server.py &
+          sleep 3
+          curl -fsS --retry 3 http://127.0.0.1:8765/api/health || (cat server.out.log || true; exit 1)
+          pkill -f server.py || true

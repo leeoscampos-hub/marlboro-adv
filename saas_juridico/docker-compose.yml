@@ -1,0 +1,43 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: lexflow_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lexflow
+      POSTGRES_USER: lexflow
+      POSTGRES_PASSWORD: lexflow
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lexflow -d lexflow"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+
+  app:
+    build: .
+    container_name: lexflow_app
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8765
+      DATABASE_URL: postgresql://lexflow:lexflow@db:5432/lexflow
+    ports:
+      - "8765:8765"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/api/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

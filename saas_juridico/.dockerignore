@@ -1,0 +1,9 @@
+.env
+lexflow.db
+*.log
+__pycache__/
+*.pyc
+lexflow-dashboard.png
+verify_ui.cjs
+node_modules/
+render_plano/
