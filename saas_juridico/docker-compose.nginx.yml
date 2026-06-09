@@ -1,0 +1,94 @@
+services:
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:alpine
+    container_name: lidedesk_nginx_proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      DEFAULT_HOST: 54.227.3.138
+    volumes:
+      - certs:/etc/nginx/certs:ro
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+      - /var/run/docker.sock:/tmp/docker.sock:ro
+    networks:
+      - lidedesk
+
+  acme-companion:
+    image: nginxproxy/acme-companion
+    container_name: lidedesk_acme_companion
+    restart: unless-stopped
+    environment:
+      NGINX_PROXY_CONTAINER: lidedesk_nginx_proxy
+      DEFAULT_EMAIL: admin@lidedesk.com.br
+    volumes:
+      - certs:/etc/nginx/certs:rw
+      - acme:/etc/acme.sh
+      - vhost:/etc/nginx/vhost.d
+      - html:/usr/share/nginx/html
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - nginx-proxy
+    networks:
+      - lidedesk
+
+  app:
+    build: .
+    container_name: lidedesk_app
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8765
+      DATABASE_URL: postgresql://lexflow:${POSTGRES_PASSWORD}@db:5432/lexflow
+      VIRTUAL_HOST: 54.227.3.138,lidedesk.com.br,www.lidedesk.com.br
+      VIRTUAL_PORT: 8765
+      LETSENCRYPT_HOST: www.lidedesk.com.br
+      LETSENCRYPT_EMAIL: admin@lidedesk.com.br
+    expose:
+      - "8765"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8765/api/health', timeout=3).read()"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - lidedesk
+
+  db:
+    image: postgres:16-alpine
+    container_name: lidedesk_db
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      POSTGRES_DB: lexflow
+      POSTGRES_USER: lexflow
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+    networks:
+      - lidedesk
+
+volumes:
+  postgres_data:
+  certs:
+  acme:
+  vhost:
+  html:
+
+networks:
+  lidedesk:
+    name: lidedesk_network
