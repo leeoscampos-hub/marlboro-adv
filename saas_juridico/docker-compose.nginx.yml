@@ -46,7 +46,7 @@ services:
       DATABASE_URL: postgresql://lexflow:${POSTGRES_PASSWORD}@db:5432/lexflow
       VIRTUAL_HOST: 54.227.3.138,lidedesk.com.br,www.lidedesk.com.br
       VIRTUAL_PORT: 8765
-      LETSENCRYPT_HOST: www.lidedesk.com.br
+      LETSENCRYPT_HOST: lidedesk.com.br
       LETSENCRYPT_EMAIL: admin@lidedesk.com.br
     expose:
       - "8765"
