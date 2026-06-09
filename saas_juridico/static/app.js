@@ -106,7 +106,7 @@ function iconSvg(name) {
 function stripAccents(value) {
   return String(value || "")
     .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "");
+    .replace(/[\u0300-\u036f]/g, "");
 }
 
 function applyTheme(theme) {
@@ -504,14 +504,14 @@ function renderLogin() {
     <main class="login-shell">
       <section class="login-panel">
         <div class="brand-row">
-          <img src="/static/mark.svg" alt="LexFlow" />
+          <img src="/static/mark.svg" alt="LideDesk" />
           <div>
-            <div class="brand-title">LexFlow IA Jurídica</div>
-            <div class="brand-subtitle">SaaS operacional para escritórios</div>
+            <div class="brand-title">LideDesk</div>
+            <div class="brand-subtitle">Gestão Jurídica Inteligente</div>
           </div>
         </div>
-        <h1>Entre no painel do escritório</h1>
-        <p>Atendimento, CRM, documentos, prazos, financeiro, compliance e agentes de IA supervisionados em uma única operação.</p>
+        <h1>Bem-vindo de volta</h1>
+        <p>Acesse sua conta para continuar a gestão inteligente do seu escritório.</p>
         <form id="loginForm">
           <div class="field">
             <label for="email">E-mail</label>
@@ -524,17 +524,17 @@ function renderLogin() {
           ${
             state.loginRequires2fa
               ? `<div class="field">
-                  <label for="otp_code">Codigo do autenticador</label>
+                  <label for="otp_code">Código do autenticador</label>
                   <input id="otp_code" name="otp_code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000" required />
-                  <span class="hint">Abra o app autenticador configurado para este usuario e digite o codigo de 6 digitos.</span>
+                  <span class="hint">Abra o app autenticador configurado para este usuário e digite o código de 6 dígitos.</span>
                 </div>`
               : ""
           }
-          <button class="btn primary" type="submit">${state.loginRequires2fa ? "Validar codigo" : "Entrar"}</button>
+          <button class="btn primary" type="submit">${state.loginRequires2fa ? "Validar código" : "Entrar na plataforma"}</button>
           <div id="loginError" class="error" role="alert"></div>
         </form>
         <div class="demo-credentials">
-          <strong>Credenciais demo</strong>
+          <strong>Credenciais de demonstração</strong>
           <span>admin@lexflow.local / admin123</span>
           <span>advogada@lexflow.local / adv123</span>
           <span>atendimento@lexflow.local / at123</span>
@@ -548,12 +548,12 @@ function renderLogin() {
             <div class="strip-item"><div class="strip-label">LGPD</div><div class="strip-value">ON</div><div class="hint">auditoria e controle</div></div>
           </div>
           <div class="context-card">
-            <h2>Produto pronto para demonstração comercial</h2>
-            <p>Fluxo completo: lead, triagem, cliente, processo, documentos, prazos, financeiro, execução de agente, logs e governança.</p>
+            <h2>Inteligência Jurídica Integrada</h2>
+            <p>Gerencie demandas, processos, clientes, prazos, financeiro e publicações em um sistema seguro e moderno.</p>
           </div>
           <div class="context-card">
-            <h2>Guardrails jurídicos por padrão</h2>
-            <p>O sistema sinaliza urgência, risco, dados sensíveis, lacunas de informação e necessidade de validação humana antes de qualquer entrega sensível.</p>
+            <h2>Operação jurídica com precisão</h2>
+            <p>Dados auditáveis, controles de acesso, IA supervisionada e trilhas de acompanhamento para decisões mais claras.</p>
           </div>
         </div>
       </section>
@@ -576,7 +576,7 @@ function renderLogin() {
       if (data.requires_2fa) {
         state.loginRequires2fa = true;
         renderLogin();
-        document.querySelector("#loginError").textContent = data.message || "Informe o codigo do autenticador.";
+        document.querySelector("#loginError").textContent = data.message || "Informe o código do autenticador.";
         document.querySelector("#otp_code")?.focus();
         return;
       }
@@ -599,10 +599,10 @@ function renderShell() {
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand-row">
-          <img src="/static/mark.svg" alt="LexFlow" />
+          <img src="/static/mark.svg" alt="LideDesk" />
           <div>
-            <div class="brand-title">LexFlow IA</div>
-            <div class="brand-subtitle">${esc(state.user.org_name)}</div>
+            <div class="brand-title">LideDesk</div>
+            <div class="brand-subtitle">${esc(state.user.org_name || "Gestão Jurídica Inteligente")}</div>
           </div>
         </div>
         <nav class="nav" id="nav">
@@ -616,7 +616,7 @@ function renderShell() {
         <div class="user-box">
           <div>
             <div class="user-name">${esc(state.user.name)}</div>
-            <div class="user-meta">${esc(state.user.email)} · ${esc(state.user.role)} · ${esc(state.user.org_plan)}</div>
+            <div class="user-meta">${esc(state.user.email)} &middot; ${esc(state.user.role)} &middot; ${esc(state.user.org_plan)}</div>
           </div>
           <button class="btn ghost" id="logoutBtn">Sair</button>
         </div>
@@ -815,7 +815,7 @@ function pageHeader(title, subtitle, actions = "") {
   return `
     <header class="topbar">
       <div>
-        <div class="breadcrumb"><span>LexFlow</span><span>${esc(navLabel)}</span></div>
+        <div class="breadcrumb"><span>LideDesk</span><span>${esc(navLabel)}</span></div>
         <h1>${esc(title)}</h1>
         <p>${esc(subtitle)}</p>
       </div>
@@ -1109,6 +1109,34 @@ function omniContactCard(item, selectedId) {
   `;
 }
 
+function omniContactDetailModalHtml(item, messages = []) {
+  if (!item) return "";
+  return `
+    <div class="modal-shell open entity-modal omni-detail-modal">
+      <div class="modal-backdrop" data-close-omni-detail></div>
+      <section class="modal-panel">
+        <header class="modal-header">
+          <div>
+            <h2>${esc(item.name || item.username || item.external_id || "Contato")}</h2>
+            <p>${esc(omniPlatformLabel(item.platform))} · ${esc(item.phone || item.username || item.external_id || "-")}</p>
+          </div>
+          <button class="btn ghost" type="button" data-close-omni-detail>Fechar</button>
+        </header>
+        <div class="omni-detail-grid">
+          <div><span>Status</span><strong>${esc(item.status || "-")}</strong></div>
+          <div><span>Lead</span><strong>${esc(item.lead_name || item.lead_id || "não vinculado")}</strong></div>
+          <div><span>Cliente</span><strong>${esc(item.client_id ? `cliente #${item.client_id}` : "não criado")}</strong></div>
+          <div><span>Última interação</span><strong>${esc(formatDate(item.last_message_at || item.updated_at))}</strong></div>
+        </div>
+        <div class="omni-detail-message">
+          <strong>Última mensagem</strong>
+          <p>${esc(item.last_message || messages[0]?.text || "Sem mensagem registrada.")}</p>
+        </div>
+      </section>
+    </div>
+  `;
+}
+
 function omniRequirementsHtml(status) {
   const links = (status.official_sources || [])
     .map((item) => `<a href="${esc(item.url)}" target="_blank" rel="noreferrer">${esc(item.label)}</a>`)
@@ -1216,6 +1244,7 @@ async function omnichannelCenterView() {
         ${omniRequirementsHtml(status)}
       </div>
     </section>
+    ${state.omnichannelDetailId ? omniContactDetailModalHtml(contacts.find((item) => Number(item.id) === Number(state.omnichannelDetailId)), messages) : ""}
   `;
 
   document.querySelector("#omniGoCrmBtn").addEventListener("click", () => {
@@ -1270,6 +1299,13 @@ async function omnichannelCenterView() {
     card.addEventListener("click", async (event) => {
       if (event.target.closest("button")) return;
       state.omnichannelSelectedContactId = Number(card.dataset.selectOmniContact);
+      state.omnichannelDetailId = state.omnichannelSelectedContactId;
+      await omnichannelCenterView();
+    });
+  });
+  document.querySelectorAll("[data-close-omni-detail]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      state.omnichannelDetailId = null;
       await omnichannelCenterView();
     });
   });
@@ -2297,6 +2333,10 @@ async function agendaAstreaV3() {
     ${eventModalHtmlV2(refs, labels)}
   `;
 
+  bindInlineLabelCreator(async () => {
+    await agendaAstreaV3();
+  });
+
   document.querySelectorAll("[data-agenda-view]").forEach((button) => {
     button.addEventListener("click", async () => {
       state.agendaView = button.dataset.agendaView || "mes";
@@ -2414,6 +2454,11 @@ function agendaActivityDetailHtmlV5(item) {
     <div class="agenda-activity-detail ${esc(normalizeAgendaV2(item.kind))}">
       <div class="agenda-detail-head">
         <span class="agenda-detail-kind">${esc(kind)}</span>
+        <div class="agenda-detail-icon-actions" aria-label="Ações da atividade">
+          <button class="icon-btn" type="button" title="Adicionar vínculo">${iconSvg("plus")}</button>
+          <button class="icon-btn" type="button" title="Etiquetas">${iconSvg("tag")}</button>
+          <button class="icon-btn" type="button" title="Histórico">${iconSvg("clock")}</button>
+        </div>
         <span class="agenda-side-avatar">${esc(agendaEntryAvatarV4(item))}</span>
       </div>
       <h3>${esc(item.title)}</h3>
@@ -2432,6 +2477,19 @@ function agendaActivityDetailHtmlV5(item) {
       <div class="agenda-detail-actions">
         <span class="${item.completed ? "agenda-detail-done" : "agenda-detail-pending"}">${item.completed ? "Concluído" : "A concluir"}</span>
         ${editAction}
+      </div>
+      <div class="agenda-detail-tabs">
+        <button type="button">Atividades</button>
+        <button class="active" type="button">Comentários</button>
+        <button type="button">Histórico de alterações</button>
+      </div>
+      <div class="agenda-detail-comments">
+        <strong>Nenhum comentário</strong>
+        <span>Adicione arquivos e marque seus @colegas no comentário para enviar uma notificação.</span>
+        <div class="agenda-comment-box">
+          <input type="text" placeholder="Digite um comentário" />
+          <button class="btn ghost" type="button">Comentar</button>
+        </div>
       </div>
     </div>
   `;
@@ -3101,6 +3159,7 @@ function taskModalHtmlV2(refs, labels = []) {
               ${labelSelectOptionsHtml(labels, "task")}
             </select>
           </div>
+          ${inlineLabelCreatorHtml("task")}
           <div class="field">
             <label for="task_v2_priority">Prioridade*</label>
             <select id="task_v2_priority" name="priority" required>
@@ -3285,6 +3344,7 @@ function eventModalHtmlV2(refs, labels = []) {
               ${labelSelectOptionsHtml(labels, "event")}
             </select>
           </div>
+          ${inlineLabelCreatorHtml("event")}
           <div class="field full">
             <label for="event_v2_observations">Observacoes</label>
             <textarea id="event_v2_observations" name="observations"></textarea>
@@ -6912,6 +6972,89 @@ function simpleTable(headers, rows) {
   `;
 }
 
+function inlineLabelCreatorHtml(scope, title = "Criar etiqueta") {
+  const safeScope = esc(scope || "case");
+  return `
+    <div class="field full label-inline-creator" data-label-inline-scope="${safeScope}">
+      <div class="label-inline-head">
+        <span>${esc(title)}</span>
+        <span class="label-inline-icon">${iconSvg("tag")}</span>
+      </div>
+      <div class="label-inline-grid">
+        <input name="inline_label_name" placeholder="Nome da etiqueta" />
+        <input name="inline_label_color" type="color" value="#2563eb" aria-label="Cor da etiqueta" />
+        <button class="btn ghost" type="button" data-create-inline-label="${safeScope}">Adicionar etiqueta</button>
+      </div>
+      <small>A etiqueta criada aparece imediatamente na seleção deste formulário.</small>
+    </div>
+  `;
+}
+
+function bindInlineLabelCreator(afterCreate) {
+  document.querySelectorAll("[data-create-inline-label]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const wrap = button.closest("[data-label-inline-scope]");
+      const scope = button.dataset.createInlineLabel || wrap?.dataset.labelInlineScope || "case";
+      const name = wrap?.querySelector('input[name="inline_label_name"]')?.value?.trim();
+      const color = wrap?.querySelector('input[name="inline_label_color"]')?.value || "#2563eb";
+      if (!name) {
+        toast("Digite o nome da etiqueta.");
+        return;
+      }
+      await api("/api/labels", { method: "POST", body: JSON.stringify({ name, color, scope }) });
+      toast("Etiqueta criada.");
+      if (typeof afterCreate === "function") await afterCreate();
+    });
+  });
+}
+
+async function dashboardView() {
+  const view = document.querySelector("#view");
+  const data = await api("/api/overview");
+  const m = data.metrics;
+  const urgent = data.urgent_tasks || [];
+  const agents = data.recent_agents || [];
+  const urgentPreview = urgent.slice(0, 3);
+  const agentPreview = agents.slice(0, 3);
+  view.innerHTML = `
+    ${pageHeader("Painel executivo", "Visão operacional do escritório, alertas e indicadores do SaaS.")}
+    <section class="grid metrics">
+      ${metric("Clientes ativos", m.clientes_ativos, "carteira")}
+      ${metric("Leads abertos", m.leads_abertos, "funil")}
+      ${metric("Processos ativos", m.processos_ativos, "jurídico")}
+      ${metric("Tarefas abertas", m.tarefas_abertas, "operação")}
+      ${metric("Críticas/altas", m.tarefas_criticas, "risco")}
+      ${metric("Financeiro pendente", money(m.financeiro_pendente), "recebíveis")}
+    </section>
+    <section class="grid three dashboard-focus-grid" style="margin-top:14px">
+      <div class="panel">
+        <div class="panel-title-row"><h2>Fila de atenção</h2>${urgent.length > 3 ? `<button class="btn ghost" data-route-link="tasks" type="button">Ver mais</button>` : ""}</div>
+        ${recordList(urgentPreview, (item) => ({
+          title: item.title,
+          badges: [item.priority, item.status, item.risk],
+          meta: [`Responsável: ${item.owner || "não definido"}`, `Vencimento: ${formatDate(item.due_date)}`, item.description || ""],
+        }))}
+      </div>
+      <div class="panel">
+        <h2>Funil e IA</h2>
+        <h3>Pipeline</h3>
+        ${simpleTable(["Etapa", "Total"], (data.pipeline || []).slice(0, 3).map((row) => [row.stage, row.total]))}
+        <div class="panel-title-row compact"><h3>Execuções recentes de agentes</h3>${agents.length > 3 ? `<button class="btn ghost" data-route-link="agents" type="button">Ver mais</button>` : ""}</div>
+        ${recordList(agentPreview, (item) => ({
+          title: agentName(item.agent),
+          badges: [item.risk_level, item.validation_required ? "validação obrigatória" : "baixo risco"],
+          meta: [`Executado em ${item.created_at}`],
+        }))}
+      </div>
+    </section>
+  `;
+  document.querySelectorAll("[data-route-link]").forEach((button) => {
+    button.addEventListener("click", () => {
+      location.hash = `#/${button.dataset.routeLink}`;
+    });
+  });
+}
+
 async function agentsView(defaultAgent = "coordenador", compactTitle = false) {
   const view = document.querySelector("#view");
   const agents = await api("/api/agents");
@@ -7094,7 +7237,7 @@ async function settingsView() {
           ${switchRow("prompt_injection_guard", "Proteção contra instrução oculta", "Sinaliza tentativas de manipulação do agente.", s.prompt_injection_guard)}
           <div class="field">
             <label for="brand_name">Nome comercial</label>
-            <input id="brand_name" name="brand_name" value="${esc(s.brand_name || "LexFlow IA Jurídica")}" />
+            <input id="brand_name" name="brand_name" value="${esc(s.brand_name || "LideDesk")}" />
           </div>
           <div class="field">
             <label for="data_retention_days">Retenção de dados em dias</label>
@@ -7424,7 +7567,9 @@ async function clientsAstreaView() {
     ${
       state.clientComposerOpen || editing
         ? `
-      <section class="panel contact-form-shell">
+      <div class="modal-shell open entity-modal" id="clientEntityModal">
+      <div class="modal-backdrop" id="clientBackdropBtn"></div>
+      <section class="modal-panel contact-form-shell">
         <h2>${editing ? "Editar contato" : "Adicionar contato"}</h2>
         <div class="contact-person-type">
           <label><input type="radio" name="contact_person_type" value="pf" ${personType === "pf" ? "checked" : ""} /> Pessoa física</label>
@@ -7445,6 +7590,7 @@ async function clientsAstreaView() {
           <div class="full"><div id="clientFormError" class="error"></div></div>
         </form>
       </section>
+      </div>
     `
         : ""
     }
@@ -7513,6 +7659,14 @@ async function clientsAstreaView() {
     state.clientComposerOpen = false;
     await clientsAstreaView();
   });
+  const clientBackdropBtn = document.querySelector("#clientBackdropBtn");
+  if (clientBackdropBtn) {
+    clientBackdropBtn.addEventListener("click", async () => {
+      state.clientEditingId = null;
+      state.clientComposerOpen = false;
+      await clientsAstreaView();
+    });
+  }
   const clientDeleteBtn = document.querySelector("#clientDeleteBtn");
   if (clientDeleteBtn) {
     clientDeleteBtn.addEventListener("click", async () => {
@@ -7606,7 +7760,9 @@ function caseLabelToolbarV4(labels = [], selected = "todos", items = []) {
 
 function caseCreateFormV4(clients, labels = []) {
   return `
-    <section class="panel case-create-panel">
+    <div class="modal-shell open entity-modal" id="caseEntityModal">
+    <div class="modal-backdrop" id="caseBackdropBtn"></div>
+    <section class="modal-panel case-create-panel">
       <h2>Adicionar processo</h2>
       <form id="caseCreateFormV4" class="form-grid case-create-grid">
         <div class="field full"><label for="case_folder">Pasta</label><input id="case_folder" name="folder" placeholder="Digite o nome ou número da pasta" /></div>
@@ -7619,6 +7775,7 @@ function caseCreateFormV4(clients, labels = []) {
           <label>Etiquetas*</label>
           ${caseLabelPickerV4(labels)}
         </div>
+        ${inlineLabelCreatorHtml("case", "Criar nova etiqueta de processo")}
         <div class="field"><label for="case_instance_level">Instância</label><select id="case_instance_level" name="instance_level"><option>1º Grau</option><option>2º Grau</option><option>Tribunais Superiores</option></select></div>
         <div class="field"><label for="case_case_number">Número</label><input id="case_case_number" name="case_number" placeholder="Digite o número do processo" /></div>
         <div class="field"><label for="case_court_number">Juízo Nº</label><input id="case_court_number" name="court_number" placeholder="Nº" /></div>
@@ -7642,6 +7799,7 @@ function caseCreateFormV4(clients, labels = []) {
         <div class="full"><div id="caseFormErrorV4" class="error"></div></div>
       </form>
     </section>
+    </div>
   `;
 }
 
@@ -7720,8 +7878,6 @@ async function casesAstreaView() {
 
   view.innerHTML = `
     ${pageHeader("Processos e casos", "Controle completo da carteira processual, com filtro, histórico e acesso rápido ao detalhe.", `
-      <button class="btn ghost" id="casesExportBtn">Exportar</button>
-      <button class="btn ghost" id="casesSyncBtn">Atualizar tribunal</button>
       <button class="btn ghost" id="casesNewLabelBtn">Nova etiqueta</button>
       <button class="btn primary" id="casesNewBtn">Novo processo</button>
     `)}
@@ -7775,6 +7931,10 @@ async function casesAstreaView() {
     </section>
   `;
 
+  bindInlineLabelCreator(async () => {
+    await casesAstreaView();
+  });
+
   document.querySelector("#casesSearchInput").addEventListener("input", async (event) => {
     state.caseSearch = event.currentTarget.value;
     state.caseVisibleCount = 30;
@@ -7822,11 +7982,15 @@ async function casesAstreaView() {
     state.caseComposerOpen = true;
     await casesAstreaView();
   });
-  document.querySelector("#casesExportBtn").addEventListener("click", () => exportCasesCsvV3(filtered));
-  document.querySelector("#casesSyncBtn").addEventListener("click", async () => {
-    await api("/api/tribunal-integrations/sync", { method: "POST", body: JSON.stringify({ provider: "ALL-TJ", system_code: "DATAJUD" }) });
-    await casesAstreaView();
-  });
+  const casesExportBtn = document.querySelector("#casesExportBtn");
+  if (casesExportBtn) casesExportBtn.addEventListener("click", () => exportCasesCsvV3(filtered));
+  const casesSyncBtn = document.querySelector("#casesSyncBtn");
+  if (casesSyncBtn) {
+    casesSyncBtn.addEventListener("click", async () => {
+      await api("/api/tribunal-integrations/sync", { method: "POST", body: JSON.stringify({ provider: "ALL-TJ", system_code: "DATAJUD" }) });
+      await casesAstreaView();
+    });
+  }
   document.querySelector("#casesNewLabelBtn").addEventListener("click", async () => {
     const name = prompt("Digite o nome da nova etiqueta de processo:");
     if (!name) return;
@@ -7855,6 +8019,13 @@ async function casesAstreaView() {
     state.caseComposerOpen = false;
     await casesAstreaView();
   });
+  const caseBackdropBtn = document.querySelector("#caseBackdropBtn");
+  if (caseBackdropBtn) {
+    caseBackdropBtn.addEventListener("click", async () => {
+      state.caseComposerOpen = false;
+      await casesAstreaView();
+    });
+  }
   caseForm.addEventListener("submit", async (event) => {
     event.preventDefault();
     const error = document.querySelector("#caseFormErrorV4");
