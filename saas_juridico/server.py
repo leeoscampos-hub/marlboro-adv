@@ -856,17 +856,21 @@ def execute(conn: sqlite3.Connection | PgConnection, sql: str, params: tuple[Any
             # Handle INSERT INTO table (col1, col2) VALUES (?, ?)
             m = re.match(r"insert\s+into\s+([\w_]+)\s*\(([^)]+)\)\s*values\s*\(([^)]+)\)", sql_lower, flags=re.I)
             if m:
+                table = m.group(1)
+                sensitive_cols = set(_SENSITIVE_COLUMNS.get(table, ()))
                 cols_raw = m.group(2)
                 cols = [c.strip().strip('"') for c in cols_raw.split(",")]
                 params = list(params)
                 for idx, col in enumerate(cols):
-                    if col in _SENSITIVE_COLUMN_SET and idx < len(params) and isinstance(params[idx], str) and params[idx] is not None:
+                    if col in sensitive_cols and idx < len(params) and isinstance(params[idx], str) and params[idx] is not None:
                         params[idx] = _field_crypto.encrypt_str(params[idx])
                 params = tuple(params)
             else:
                 # Handle simple UPDATE table SET col1 = ?, col2 = ? WHERE ...
                 m2 = re.match(r"update\s+([\w_]+)\s+set\s+(.+)\s+where\s+", sql_lower, flags=re.I | re.S)
                 if m2:
+                    table = m2.group(1)
+                    sensitive_cols = set(_SENSITIVE_COLUMNS.get(table, ()))
                     set_clause = m2.group(2)
                     # split assignments by commas not in parentheses
                     assignments = [a.strip() for a in re.split(r",(?=(?:[^\']*\'[^\']*\')*[^\']*$)", set_clause) if a.strip()]
@@ -881,7 +885,7 @@ def execute(conn: sqlite3.Connection | PgConnection, sql: str, params: tuple[Any
                         # count number of ? in the RHS
                         qcount = assign.count("?")
                         for _ in range(qcount):
-                            if col in _SENSITIVE_COLUMN_SET and param_idx < len(params) and isinstance(params[param_idx], str) and params[param_idx] is not None:
+                            if col in sensitive_cols and param_idx < len(params) and isinstance(params[param_idx], str) and params[param_idx] is not None:
                                 params[param_idx] = _field_crypto.encrypt_str(params[param_idx])
                             param_idx += 1
                     params = tuple(params)
@@ -2732,15 +2736,20 @@ class AppHandler(BaseHTTPRequestHandler):
         data = self.read_json()
         email = (data.get("email") or "").lower().strip()
         password = data.get("password") or ""
-        row = execute(
+        rows = execute(
             conn,
             """
             SELECT u.*, o.name AS org_name, o.plan AS org_plan
             FROM users u JOIN organizations o ON o.id = u.org_id
-            WHERE lower(u.email) = lower(?) AND u.status = 'active'
+            WHERE u.status = 'active'
             """,
-            (email,),
-        ).fetchone()
+        ).fetchall()
+        row = None
+        for candidate in rows:
+            candidate_dict = row_to_dict(candidate) or {}
+            if str(candidate_dict.get("email") or "").lower().strip() == email:
+                row = candidate_dict
+                break
         if not row or not verify_password(password, row["password_hash"]):
             return self.json_response({"error": "E-mail ou senha inválidos"}, 401)
         if int(row["two_factor_enabled"] or 0):
@@ -2756,8 +2765,7 @@ class AppHandler(BaseHTTPRequestHandler):
         expires = (datetime.utcnow() + timedelta(hours=SESSION_HOURS)).replace(microsecond=0).isoformat() + "Z"
         execute(conn, "INSERT INTO sessions (token, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)", (token, row["id"], expires, utc_now()))
         audit(conn, row["org_id"], row["id"], "login", "session", None, "Usuário autenticado")
-        user = row_to_dict(row)
-        return self.json_response({"token": token, "user": public_user(user)})
+        return self.json_response({"token": token, "user": public_user(row)})
 
     def logout(self, conn: sqlite3.Connection, user: dict[str, Any]) -> None:
         auth_header = self.headers.get("Authorization", "")
