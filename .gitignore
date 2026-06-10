@@ -17,6 +17,7 @@
 
 saas_juridico/backups/
 saas_juridico/server*.log
+saas_juridico/server*.pid
 saas_juridico/*.err.log
 saas_juridico/*.out.log
 

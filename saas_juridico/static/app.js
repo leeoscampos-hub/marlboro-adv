@@ -849,7 +849,7 @@ async function renderRoute() {
   if (state.route === "agenda") return agendaAstreaV3();
   if (state.route === "tasks") return agendaAstreaV3();
   if (state.route === "agents") return agentsView();
-  if (state.route === "compliance") return complianceView();
+  if (state.route === "compliance") return alertsView();
   if (state.route === "bi") return biView();
   if (state.route === "settings") return settingsView();
   if (moduleConfigs[state.route]) return moduleView(moduleConfigs[state.route], state.route);
@@ -2780,6 +2780,12 @@ async function agendaAstreaV3() {
       await agendaAstreaV3();
     });
   });
+  document.querySelectorAll("[data-close-agenda-detail]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      state.agendaSelectedActivity = null;
+      await agendaAstreaV3();
+    });
+  });
   document.querySelectorAll("[data-complete-agenda-id]").forEach((button) => {
     button.addEventListener("click", async (event) => {
       event.stopPropagation();
@@ -2932,7 +2938,7 @@ function renderAgendaCalendarDayV3(entries, anchorDate) {
           <div class="agenda-entry-time">${esc(item.time || "Dia inteiro")}</div>
           <div class="agenda-entry-main-row">
             <div class="agenda-entry-main">
-              <strong>${esc(item.title)}</strong>
+              <strong>${esc(agendaEntryCompactTitleV6(item))}</strong>
               <span>${esc(item.kind)} · ${esc(item.status)} · ${esc(item.priority)}</span>
             </div>
             ${
@@ -2985,7 +2991,7 @@ function renderAgendaCalendarWeekV3(entries, anchorDate) {
                             : ""
                         }
                       </div>
-                      <strong>${esc(item.title)}</strong>
+                      <strong>${esc(agendaEntryCompactTitleV6(item))}</strong>
                     </article>
                   `
                         )
@@ -3038,7 +3044,7 @@ function renderAgendaCalendarMonthV3(entries, anchorDate, selectedDate = null) {
                         : ""
                     }
                   </div>
-                  <strong>${esc(item.title)}</strong>
+                  <strong>${esc(agendaEntryCompactTitleV6(item))}</strong>
                 </div>
               `
                 )
@@ -4048,6 +4054,16 @@ function agendaEntryAvatarV4(item) {
   return initials || "Eu";
 }
 
+function agendaEntryCompactTitleV6(item) {
+  const initials = agendaEntryAvatarV4(item);
+  const rawTitle = String(item.title || item.description || item.kind || "atividade").trim();
+  const normalized = normalizeAgendaV2([rawTitle, item.deadline_type, item.description].filter(Boolean).join(" "));
+  const label = normalized.includes("intimacao") ? "INTIMAÇÃO" : rawTitle;
+  const max = normalized.includes("intimacao") ? 34 : 42;
+  const compact = label.length > max ? `${label.slice(0, max - 1)}…` : label;
+  return `${initials} - ${compact}`;
+}
+
 function agendaDayPanelHtmlV4(entries, selectedDate) {
   const selectedKey = selectedDate || state.agendaDate || agendaDateToKeyV3(new Date());
   const dayEntries = (entries || [])
@@ -4061,7 +4077,6 @@ function agendaDayPanelHtmlV4(entries, selectedDate) {
         <h2>${esc(agendaDayPanelTitleV4(selectedKey))}</h2>
         <span>${esc(countLabel)}</span>
       </header>
-      ${agendaActivityDetailHtmlV5(selectedActivity)}
       <div class="agenda-day-side-list">
         ${
           dayEntries.length
@@ -4080,7 +4095,7 @@ function agendaDayPanelHtmlV4(entries, selectedDate) {
                       </button>
                       <div class="agenda-side-main">
                         <div class="agenda-side-kind">${esc(kind)}</div>
-                        <strong>${esc(item.title)}</strong>
+                        <strong>${esc(agendaEntryCompactTitleV6(item))}</strong>
                         ${details ? `<span>${esc(details)}</span>` : ""}
                         ${label ? `<div class="agenda-side-label">${esc(label)}</div>` : ""}
                       </div>
@@ -4093,6 +4108,22 @@ function agendaDayPanelHtmlV4(entries, selectedDate) {
         }
       </div>
     </aside>
+    ${selectedActivity ? agendaActivityDetailModalHtmlV6(selectedActivity) : ""}
+  `;
+}
+
+function agendaActivityDetailModalHtmlV6(item) {
+  return `
+    <div class="modal-shell open agenda-detail-modal" id="agendaActivityDetailModal">
+      <div class="modal-backdrop" data-close-agenda-detail></div>
+      <section class="modal-panel agenda-detail-modal-panel">
+        <header class="modal-header">
+          <h2>${esc(agendaEntryKindLabelV4(item))}</h2>
+          <button class="btn ghost" type="button" data-close-agenda-detail>Fechar</button>
+        </header>
+        ${agendaActivityDetailHtmlV5(item)}
+      </section>
+    </div>
   `;
 }
 
@@ -4371,7 +4402,7 @@ function attendanceTagsV5(item) {
   if (!tags.length) return "";
   return tags
     .slice(0, 5)
-    .map((tag, index) => `<span class="attendance-tag color-${(index % 5) + 1}">${esc(tag)} <b>x</b></span>`)
+    .map((tag, index) => `<span class="attendance-tag color-${(index % 5) + 1}">${esc(tag)}</span>`)
     .join("");
 }
 
@@ -4463,6 +4494,7 @@ async function attendancesAstreaView() {
         <input id="attendance_tag" name="tag" list="attendanceLabelOptions" placeholder="Ex.: retorno, inicial, reunião" />
         ${labelOptions}
       </div>
+      ${inlineLabelCreatorHtml("attendance", "Criar etiqueta para atendimentos")}
       <div class="field">
         <label for="attendance_owner">Responsável</label>
         <input id="attendance_owner" name="owner" value="${esc(state.user?.name || "")}" />
@@ -4512,6 +4544,7 @@ async function attendancesAstreaView() {
           ${labelSelectOptionsHtml(labels, "task")}
         </select>
       </div>
+      ${inlineLabelCreatorHtml("task", "Criar etiqueta para tarefas")}
       <div class="field">
         <label for="attendance_task_ref">Atendimento vinculado</label>
         <select id="attendance_task_ref" name="attendance_id">
@@ -4550,6 +4583,7 @@ async function attendancesAstreaView() {
           ${labelSelectOptionsHtml(labels, "event")}
         </select>
       </div>
+      ${inlineLabelCreatorHtml("event", "Criar etiqueta para eventos")}
       <div class="field">
         <label for="attendance_event_ref">Atendimento vinculado</label>
         <select id="attendance_event_ref" name="attendance_id">
@@ -4626,7 +4660,6 @@ async function attendancesAstreaView() {
             <button class="${panel === "evento" ? "active" : ""}" data-attendance-panel="evento">Novo evento</button>
           </div>
           <div class="attendance-form-wrap">${panel === "atendimento" ? attendanceForm : panel === "tarefa" ? taskForm : eventForm}</div>
-          ${labelManager}
         </div>
       </section>
     `;
@@ -4657,10 +4690,12 @@ async function attendancesAstreaView() {
             <button class="${panel === "evento" ? "active" : ""}" data-attendance-panel="evento">Novo evento</button>
           </div>
           <div class="attendance-form-wrap">${panel === "atendimento" ? attendanceForm : panel === "tarefa" ? taskForm : eventForm}</div>
-          ${labelManager}
       </section>
     `;
   }
+  bindInlineLabelCreator(async () => {
+    await attendancesAstreaView();
+  });
 
   document.querySelectorAll("[data-attendance-panel]").forEach((button) => {
     button.addEventListener("click", async () => {
@@ -5360,27 +5395,7 @@ async function financeAstreaView() {
       const linked = resolveReferenceV2(payload.case_reference, null);
       const error = document.querySelector("#financeLaunchError");
       const recurringFlag = document.querySelector("#fin_recurring").checked ? "1" : "0";
-      const createHonorarioTask = async (description, dueDate, partNumber, totalParts) => {
-        if (state.financeLaunchType !== "honorario") return;
-        await api("/api/tasks", {
-          method: "POST",
-          body: JSON.stringify({
-            title: `Cobrança de honorários (${partNumber}/${totalParts}) - ${description}`,
-            description: "Cobrança automática criada a partir do lançamento de honorários.",
-            due_date: dueDate,
-            status: "aberta",
-            priority: "média",
-            owner: payload.responsible || state.user?.name || "",
-            task_list: "Financeiro",
-            linked_reference: payload.case_reference,
-            kanban_board: "Kanban Padrão",
-            kanban_column: "A Fazer",
-            linked_type: linked.type,
-            linked_id: linked.id,
-            risk: "médio",
-          }),
-        });
-      };
+      const createHonorarioTask = async () => {};
       error.textContent = "";
       const totalLines = Math.max(1, Math.min(24, Number(state.financeLineCount || 1)));
       if (!linked?.id) {
@@ -5403,6 +5418,7 @@ async function financeAstreaView() {
             launch_type: state.financeLaunchType,
             recurring_monthly: recurringFlag,
             responsible: payload.responsible,
+            linked_reference: payload.case_reference,
             linked_type: linked.type,
             linked_id: linked.id,
             case_id: caseId,
@@ -5428,6 +5444,7 @@ async function financeAstreaView() {
               launch_type: state.financeLaunchType,
               recurring_monthly: recurringFlag,
               responsible: payload.responsible,
+              linked_reference: payload.case_reference,
               linked_type: linked.type,
               linked_id: linked.id,
               case_id: caseId,
@@ -6382,7 +6399,6 @@ async function publicationsAstreaClippingsView() {
         </div>
         ${connectorSummaryGrid(visibleConnectors, courts)}
       </section>
-      ${tribunalHomologationPanel(homologationReport, homologationItems, courts)}
       <section class="panel tribunal-connector-drawer">
         <div>
           <h2>Credenciais, OAB e 2FA dos tribunais</h2>
@@ -7051,6 +7067,61 @@ async function dashboardView() {
   document.querySelectorAll("[data-route-link]").forEach((button) => {
     button.addEventListener("click", () => {
       location.hash = `#/${button.dataset.routeLink}`;
+    });
+  });
+}
+
+async function alertsView() {
+  const view = document.querySelector("#view");
+  const [tasksRes, deadlinesRes] = await Promise.all([api("/api/tasks"), api("/api/deadlines")]);
+  const today = new Date();
+  const start = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+  const inWeek = (value) => {
+    const date = parseDateOnly(value);
+    return date && date >= start && date <= end;
+  };
+  const taskItems = (tasksRes.items || []).filter((item) => !isTaskDoneV2(item.status) && inWeek(item.due_date));
+  const deadlineItems = (deadlinesRes.items || []).filter((item) => !isDeadlineDoneV2(item.status) && inWeek(item.due_date));
+  view.innerHTML = `
+    ${pageHeader("Alertas", "Tarefas urgentes e prazos que vencem nos próximos 7 dias.")}
+    <section class="grid metrics">
+      ${metric("Tarefas na semana", taskItems.length, "a concluir")}
+      ${metric("Prazos na semana", deadlineItems.length, "processuais")}
+      ${metric("Críticas ou altas", taskItems.filter((item) => ["alta", "crítica"].includes(String(item.priority || "").toLowerCase())).length, "prioridade")}
+    </section>
+    <section class="grid two" style="margin-top:14px">
+      <div class="panel">
+        <h2>Tarefas urgentes</h2>
+        ${taskItems.length ? recordList(taskItems, (item) => ({
+          title: item.title,
+          badges: [item.priority || "média", item.status || "aberta"],
+          meta: [`Vencimento: ${formatDate(item.due_date)}`, `Responsável: ${item.owner || "não definido"}`],
+          actions: `<button class="btn ghost" data-alert-complete-task="${esc(item.id)}" type="button">Concluir</button>`,
+        })) : `<div class="empty">Nenhuma tarefa vence nesta semana.</div>`}
+      </div>
+      <div class="panel">
+        <h2>Prazos processuais</h2>
+        ${deadlineItems.length ? recordList(deadlineItems, (item) => ({
+          title: item.title || item.deadline_type || "Prazo",
+          badges: [item.priority || "média", item.status || "pendente"],
+          meta: [`Vencimento: ${formatDate(item.due_date)}`, item.case_number ? `Processo: ${item.case_number}` : ""],
+          actions: `<button class="btn ghost" data-alert-complete-deadline="${esc(item.id)}" type="button">Concluir</button>`,
+        })) : `<div class="empty">Nenhum prazo processual vence nesta semana.</div>`}
+      </div>
+    </section>
+  `;
+  document.querySelectorAll("[data-alert-complete-task]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await api(`/api/tasks/${button.dataset.alertCompleteTask}/status`, { method: "PATCH", body: JSON.stringify({ status: "concluída" }) });
+      await alertsView();
+    });
+  });
+  document.querySelectorAll("[data-alert-complete-deadline]").forEach((button) => {
+    button.addEventListener("click", async () => {
+      await api(`/api/deadlines/${button.dataset.alertCompleteDeadline}/status`, { method: "PATCH", body: JSON.stringify({ status: "concluído" }) });
+      await alertsView();
     });
   });
 }

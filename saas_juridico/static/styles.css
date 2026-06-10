@@ -5378,6 +5378,22 @@ a {
   overflow: auto;
 }
 
+.agenda-detail-modal-panel {
+  width: min(860px, calc(100vw - 32px));
+  max-height: min(88vh, 940px);
+  overflow: auto;
+}
+
+.agenda-detail-modal .agenda-detail-card {
+  border: 0;
+  box-shadow: none;
+  padding: 0;
+}
+
+.agenda-detail-modal .agenda-detail-icon-actions {
+  display: none;
+}
+
 .contact-form-shell,
 .case-create-panel {
   box-shadow: var(--shadow);

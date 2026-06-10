@@ -969,6 +969,8 @@ def ensure_schema_migrations(conn: sqlite3.Connection | PgConnection) -> None:
         "label_id": "INTEGER",
         "started_at": "TEXT",
         "finished_at": "TEXT",
+        "automation_group": "TEXT",
+        "automation_role": "TEXT",
     }
     event_columns = {
         "linked_type": "TEXT",
@@ -4599,8 +4601,94 @@ class AppHandler(BaseHTTPRequestHandler):
                 utc_now(),
             ),
         )
-        audit(conn, user["org_id"], user["id"], "create", "finance", cur.lastrowid, data.get("description", ""))
-        self.json_response({"id": cur.lastrowid}, 201)
+        finance_id = int(cur.lastrowid)
+        self.ensure_finance_collection_tasks(conn, user, finance_id, data)
+        audit(conn, user["org_id"], user["id"], "create", "finance", finance_id, data.get("description", ""))
+        self.json_response({"id": finance_id}, 201)
+
+    def ensure_finance_collection_tasks(
+        self,
+        conn: sqlite3.Connection | PgConnection,
+        user: dict[str, Any],
+        finance_id: int,
+        data: dict[str, Any],
+    ) -> None:
+        launch_type = str(data.get("launch_type") or "").lower()
+        kind = str(data.get("kind") or "").lower()
+        due_date = str(data.get("due_date") or "").strip()
+        is_entry = launch_type in {"honorario", "entrada"} or any(token in kind for token in ("honorario", "entrada", "receita"))
+        if not is_entry or not due_date:
+            return
+        group = f"finance:{finance_id}:collection"
+        existing = execute(
+            conn,
+            "SELECT COUNT(*) AS total FROM tasks WHERE org_id = ? AND automation_group = ?",
+            (user["org_id"], group),
+        ).fetchone()
+        if existing and int(existing["total"] or 0) > 0:
+            return
+        title_base = str(data.get("description") or "lançamento financeiro").strip()
+        owner = data.get("responsible") or user.get("name") or "Administrador"
+        linked_type = data.get("linked_type")
+        linked_id = nullable_int(data.get("linked_id"))
+        linked_reference = data.get("case_reference") or data.get("linked_reference") or ""
+        task_rows = [
+            (
+                f"Verificar pagamento - {title_base}",
+                "Conferir se o pagamento foi identificado no financeiro.",
+                due_date,
+                "verificar_pagamento",
+                "média",
+            ),
+            (
+                f"Cobrança - {title_base}",
+                "Cobrança automática criada 1 dia após o vencimento do lançamento.",
+                add_days(due_date, 1),
+                "cobranca_1_dia",
+                "média",
+            ),
+        ]
+        for index in range(1, 4):
+            task_rows.append(
+                (
+                    f"Relembrar cobrança ({index}) - {title_base}",
+                    "Lembrete automático de cobrança recorrente a cada 5 dias.",
+                    add_days(due_date, 1 + (index * 5)),
+                    f"cobranca_relembrete_{index}",
+                    "baixa",
+                )
+            )
+        for title, description, task_due_date, role, priority in task_rows:
+            execute(
+                conn,
+                """
+                INSERT INTO tasks (
+                    org_id, title, description, status, priority, due_date, owner, task_list,
+                    linked_reference, linked_type, linked_id, kanban_board, kanban_column,
+                    risk, automation_group, automation_role, created_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    user["org_id"],
+                    title,
+                    description,
+                    "aberta",
+                    priority,
+                    task_due_date,
+                    owner,
+                    "Financeiro",
+                    linked_reference,
+                    linked_type,
+                    linked_id,
+                    "Kanban Padrão",
+                    "A Fazer",
+                    "médio",
+                    group,
+                    role,
+                    utc_now(),
+                ),
+            )
 
     def update_finance(self, conn: sqlite3.Connection | PgConnection, user: dict[str, Any], path: str) -> None:
         finance_id = int(path.split("/")[3])
@@ -4991,9 +5079,9 @@ class AppHandler(BaseHTTPRequestHandler):
             INSERT INTO tasks (
                 org_id, title, description, status, priority, due_date, deadline_time, owner, task_list,
                 linked_reference, kanban_board, kanban_column, collaborators, label_id, started_at, finished_at,
-                linked_type, linked_id, risk, created_at
+                linked_type, linked_id, risk, automation_group, automation_role, created_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 user["org_id"],
@@ -5015,6 +5103,8 @@ class AppHandler(BaseHTTPRequestHandler):
                 data.get("linked_type"),
                 nullable_int(data.get("linked_id")),
                 data.get("risk") or "médio",
+                data.get("automation_group"),
+                data.get("automation_role"),
                 utc_now(),
             ),
         )
@@ -5039,7 +5129,8 @@ class AppHandler(BaseHTTPRequestHandler):
             UPDATE tasks
             SET title = ?, description = ?, status = ?, priority = ?, due_date = ?, deadline_time = ?, owner = ?,
                 task_list = ?, linked_reference = ?, kanban_board = ?, kanban_column = ?, collaborators = ?, label_id = ?,
-                started_at = ?, finished_at = ?, linked_type = ?, linked_id = ?, risk = ?
+                started_at = ?, finished_at = ?, linked_type = ?, linked_id = ?, risk = ?,
+                automation_group = COALESCE(?, automation_group), automation_role = COALESCE(?, automation_role)
             WHERE org_id = ? AND id = ?
             """,
             (
@@ -5061,6 +5152,8 @@ class AppHandler(BaseHTTPRequestHandler):
                 data.get("linked_type"),
                 nullable_int(data.get("linked_id")),
                 data.get("risk") or "médio",
+                data.get("automation_group"),
+                data.get("automation_role"),
                 user["org_id"],
                 task_id,
             ),
@@ -5265,7 +5358,30 @@ class AppHandler(BaseHTTPRequestHandler):
             task_id = int(path.split("/")[3])
             data = self.read_json()
             status = data.get("status") or "concluída"
+            task_row = execute(
+                conn,
+                "SELECT automation_group, automation_role FROM tasks WHERE org_id = ? AND id = ?",
+                (user["org_id"], task_id),
+            ).fetchone()
             execute(conn, "UPDATE tasks SET status = ? WHERE org_id = ? AND id = ?", (status, user["org_id"], task_id))
+            if (
+                task_row
+                and str(task_row["automation_role"] or "") == "verificar_pagamento"
+                and str(status).lower().startswith("concl")
+                and task_row["automation_group"]
+            ):
+                execute(
+                    conn,
+                    """
+                    UPDATE tasks
+                    SET status = ?
+                    WHERE org_id = ?
+                      AND automation_group = ?
+                      AND id != ?
+                      AND automation_role LIKE 'cobranca%'
+                    """,
+                    ("concluída", user["org_id"], task_row["automation_group"], task_id),
+                )
             audit(conn, user["org_id"], user["id"], "update_status", "task", task_id, status)
             self.json_response({"ok": True})
         except Exception as e:
@@ -6602,6 +6718,14 @@ def add_business_days(date_text: str, days: int) -> str:
         if current.weekday() < 5:
             added += 1
     return current.strftime("%Y-%m-%d")
+
+
+def add_days(date_text: str, days: int) -> str:
+    try:
+        current = datetime.strptime(str(date_text)[:10], "%Y-%m-%d")
+    except Exception:
+        current = datetime.utcnow()
+    return (current + timedelta(days=int(days or 0))).strftime("%Y-%m-%d")
 
 
 def infer_deadline_priority(text: str) -> str:
